@@ -1,17 +1,42 @@
-// TODO: Use two variants, one for a title error and one for a description error.
-//   Each variant should contain a string with the explanation of what went wrong exactly.
-//   You'll have to update the implementation of `Ticket::new` as well.
-enum TicketNewError {}
+// TODO: Implement `Debug`, `Display` and `Error` for the `TicketNewError` enum.
+//  When implementing `Display`, you may want to use the `write!` macro from Rust's standard library.
+//  The docs for the `std::fmt` module are a good place to start and look for examples:
+//  https://doc.rust-lang.org/std/fmt/index.html#write
+
+#[derive(Debug)]
+enum TicketNewError {
+    TitleError(String),
+    DescriptionError(String),
+}
+
+impl std::fmt::Display for TicketNewError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            TicketNewError::TitleError(msg) => write!(f, "{}", msg),
+            TicketNewError::DescriptionError(msg) => write!(f, "{}", msg),
+        }
+    }
+}
+
+impl std::error::Error for TicketNewError {}
 
 // TODO: `easy_ticket` should panic when the title is invalid, using the error message
 //   stored inside the relevant variant of the `TicketNewError` enum.
 //   When the description is invalid, instead, it should use a default description:
 //   "Description not provided".
 fn easy_ticket(title: String, description: String, status: Status) -> Ticket {
-    todo!()
+    match Ticket::new(title.clone(), description, status.clone()) {
+        Ok(ticket) => ticket,
+        Err(err) => match err {
+            TicketNewError::TitleError(_) => panic!("{err}"),
+            TicketNewError::DescriptionError(_) => {
+                Ticket::new(title, "Description not provided".to_string(), status).unwrap()
+            }
+        },
+    }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Ticket {
     title: String,
     description: String,
@@ -32,16 +57,24 @@ impl Ticket {
         status: Status,
     ) -> Result<Ticket, TicketNewError> {
         if title.is_empty() {
-            return Err("Title cannot be empty".to_string());
+            return Err(TicketNewError::TitleError(
+                "Title cannot be empty".to_string(),
+            ));
         }
         if title.len() > 50 {
-            return Err("Title cannot be longer than 50 bytes".to_string());
+            return Err(TicketNewError::TitleError(
+                "Title cannot be longer than 50 bytes".to_string(),
+            ));
         }
         if description.is_empty() {
-            return Err("Description cannot be empty".to_string());
+            return Err(TicketNewError::DescriptionError(
+                "Description cannot be empty".to_string(),
+            ));
         }
         if description.len() > 500 {
-            return Err("Description cannot be longer than 500 bytes".to_string());
+            return Err(TicketNewError::DescriptionError(
+                "Description cannot be longer than 500 bytes".to_string(),
+            ));
         }
 
         Ok(Ticket {
@@ -56,6 +89,7 @@ impl Ticket {
 mod tests {
     use super::*;
     use common::{overly_long_description, overly_long_title, valid_description, valid_title};
+    // use static_assertions::assert_impl_one;
 
     #[test]
     #[should_panic(expected = "Title cannot be empty")]
@@ -80,4 +114,12 @@ mod tests {
         let ticket = easy_ticket(valid_title(), overly_long_description(), Status::ToDo);
         assert_eq!(ticket.description, "Description not provided");
     }
+
+    #[test]
+    fn display_is_correctly_implemented() {
+        let ticket = Ticket::new("".into(), valid_description(), Status::ToDo);
+        assert_eq!(format!("{}", ticket.unwrap_err()), "Title cannot be empty");
+    }
+
+    // assert_impl_one!(TicketNewError: std::error::Error);
 }
